@@ -16,12 +16,22 @@
 module Pulse.Lib.SpinLock
 
 open Pulse.Lib.Pervasives
+open Pulse.Class.Duplicable
 
 module T = FStar.Tactics.V2
 
 val lock : Type0
 
 val lock_alive (l:lock) (#[T.exact (`1.0R)] p:perm)  (v:vprop) : vprop
+
+(* Like lock_alive, but only relates the lock to the vprop, without
+claiming any permission on its. This is freely duplicable. The lock
+can even be deallocated while holding this. Internally, it just
+stores the relation between the lock's invariant and v. *)
+val lock_alive0 (l:lock) (v:vprop) : vprop
+
+instance val dup_lock_alive0 (l : lock) (v : vprop)
+  : duplicable (lock_alive0 l v)
 
 val lock_acquired (l:lock) : vprop
 
@@ -63,3 +73,23 @@ val lock_alive_inj (l:lock) (#p1 #p2 : perm) (#v1 #v2 : vprop)
   : stt_ghost unit emp_inames
               (lock_alive l #p1 v1 ** lock_alive l #p2 v2)
               (fun _ -> lock_alive l #p1 v1 ** lock_alive l #p2 v1)
+
+val lock_alive0_inj_l (l:lock) (#p1 : perm) (#v1 #v2 : vprop)
+  : stt_ghost unit emp_inames
+              (lock_alive l #p1 v1 ** lock_alive0 l v2)
+              (fun _ -> lock_alive l #p1 v1 ** lock_alive0 l v1)
+
+val lock_alive0_inj_r (l:lock) (#p1 : perm) (#v1 #v2 : vprop)
+  : stt_ghost unit emp_inames
+              (lock_alive l #p1 v1 ** lock_alive0 l v2)
+              (fun _ -> lock_alive l #p1 v2 ** lock_alive0 l v2)
+
+val lock_alive0_inj_both (l:lock) (#v1 #v2 : vprop)
+  : stt_ghost unit emp_inames
+              (lock_alive0 l v1 ** lock_alive0 l v2)
+              (fun _ -> lock_alive0 l v2 ** lock_alive0 l v2)
+
+val get_lock_alive0 (l:lock) (#p:perm) (#v:vprop)
+  : stt_ghost unit emp_inames
+              (lock_alive l #p v)
+              (fun _ -> lock_alive l #p v ** lock_alive0 l v)
